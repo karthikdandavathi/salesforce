@@ -138,7 +138,6 @@ class Module(object):
         return installed
 
 
-
 if __name__ == '__main__':
     lines = []
     while True:
