@@ -18,7 +18,7 @@ class JumpStart(object):
         print(line)
         args = line.split(' ')
         cmd = self.commands.get(args[0])
-        success = collections.defaultdict()
+        success = collections.OrderedDict()
 
         #remove cmd argument from list
         args.pop(0)
@@ -49,11 +49,10 @@ class InstallCmd(object):
         self.args = args
 
     def execute(self,args):
-        result = collections.defaultdict()
+        result = collections.OrderedDict()
 
         for depName in args:
             dep = Module.get_instance(depName)
-            #print("the returned instance is:{0}".format(dep.get_name()))
             self.install(dep,result)
         return result
 
@@ -64,11 +63,9 @@ class InstallCmd(object):
             for dependancy in current.get_dependencies():
                 if not dependancy.is_installed():
                     self.install(dependancy,result)
-
             result[current.get_name()] = 'succesfully installed'
         else:
             result[current.get_name()] = 'is already installed'
-
         return result
 
 class RemoveCmd:
@@ -80,34 +77,37 @@ class RemoveCmd:
 
         dep = Module.get_instance(depName)
         if dep is not None:
-            return self.uninstall(dep)
+            return self.uninstall(dep,True)
 
-        result = collections.defaultdict()
         result[depName] = 'is not installed'
         return result
 
-    def uninstall(self,parent):
-        result = collections.defaultdict()
-
+    def uninstall(self,parent,children):
+        result = collections.OrderedDict()
         #get installed dependants
-        installed_dependants = set()
-        tmp = parent.get_dependants()
-        for dep in tmp:
-            if dep.is_installed:
-                installed_dependants.add(dep)
+        if parent.is_installed():
+            installed_dependants = set()
 
-        if not installed_dependants:
-            print("the dependants are {0}".format(parent.get_dependants()))
-            print("the dependencies are {0}".format(parent.get_dependencies()))
-            result[parent.get_name()] = 'succesfully removed'
-            parent.set_installed(False)
+            tmp = parent.get_dependants()
+            for dep in tmp:
+                if dep.is_installed():
+                    installed_dependants.add(dep)
 
-            for dependancy in parent.get_dependencies():
-                if not dependancy.is_installed():
-                    result.update(self.uninstall(dependancy))
+            if not installed_dependants:
+                if not children:
+                    result[parent.get_name()+ ' is no longer needed'] = ''
+                result[parent.get_name()] = ' succesfully removed'
+                parent.set_installed(False)
+
+                if children:
+                    for dependancy in parent.get_dependencies():
+                        if dependancy.is_installed():
+                            result.update(self.uninstall(dependancy,False))
+            else:
+                if children:
+                    result[parent.get_name()] = 'is still needed'
         else:
-            result[parent.get_name()] = 'is still needed'
-
+            result[parent.get_name()] = 'is not installed'
         return result
 
 
@@ -116,7 +116,7 @@ class ListCmd(object):
         self.args = args
 
     def execute(self,args):
-        result = collections.defaultdict()
+        result = collections.OrderedDict()
 
         for module in Module.get_installed():
             result[module.get_name()] = ''
@@ -124,7 +124,7 @@ class ListCmd(object):
 
 
 class Module(object):
-    DEPENDANCY_MAP = collections.defaultdict()
+    DEPENDANCY_MAP = collections.OrderedDict()
     def __init__(self,name):
         self.name = name
         self.dependencies = set()
